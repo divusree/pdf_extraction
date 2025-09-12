@@ -117,7 +117,7 @@ def main():
                     
                     # Display 2 PIL images side by side
                     col1, col2 = st.columns(2)
-                    print(results[page_numbers[0]]['image'].size)
+                    # print(results[page_numbers[0]]['image'].size)
                     with col1:
                         st.markdown("**Image 1: Extracted Bboxes**")
                         # Placeholder image - replace with actual PIL image
@@ -133,13 +133,12 @@ def main():
 
                 with tab2:
                     st.subheader("Structured Data Extract")
+                    st.json({k:v['table_regions'] for k, v in results.items()})
                     
                     # Sample structured data based on document type
-                    if doc_type == "Construction Drawings":
-                        st.json(results)
-                    else:
-                        st.json(json.dumps(scope_misc_match))
-                        st.info(json.dumps(toc_pages))
+                    if doc_type == "Specifications":
+                        st.json(dict(scope_misc_match))
+                        st.json(toc_pages)
                 
                 # with tab3:
                 #     st.subheader("Download Processed Results")

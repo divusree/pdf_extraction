@@ -320,7 +320,8 @@ def process_page(layout, page_no, images, is_sheet = True):
     # print(processed_image.size)
     # print(table_bboxes)
     return {"image":processed_image, "extracted_sheet_number": extracted_sheet_number, 
-            "extracted_sheet_title": extracted_sheet_title, "sheet_values": sheet_values}
+            "extracted_sheet_title": extracted_sheet_title, "sheet_values": sheet_values,
+            "table_regions":table_bboxes}
 
 if __name__ == "__main__":
     path = "Input - Specifications.pdf"
