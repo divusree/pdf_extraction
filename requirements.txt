@@ -1,0 +1,5 @@
+streamlit
+pdfminer.six==20250506
+pandas==2.3.2
+streamlit==1.49.1
+PyMuPDF==1.26.4
