@@ -101,27 +101,6 @@ def collect_section_info(layout):
 
     return scope_misc_match, csi_json
 
-def create_collection(csi_json, collection_name):
-    # model = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B")
-
-    docs_to_embed = [f"{key} division contains {', '.join(list(value['scope'].keys()))}" if value.get("scope") else f"{key} division info not available"  for key, value in csi_json.items() ]
-
-    chroma_client = chromadb.PersistentClient()
-    collection = chroma_client.create_collection(name=collection_name)
-    collection.upsert(
-        ids = list(csi_json.keys()),
-        documents= docs_to_embed
-    )
-
-    return collection    
-
-def query_collection(query, collection):
-    results = collection.query(
-        query_texts=[query],  
-        n_results=2  
-    )    
-    return results
-
 def get_sections(df):
     matcher = re.compile(r'(?i)(?:\d{1,2}|\d{1,2}\.\d{1,2}|[a-z])\s*\.\s*(.+)')
 
@@ -143,7 +122,26 @@ def get_sections(df):
                 subsection_bbox[-1] = [min(x0, row['x0']),max(y0, row['y0']),max(x1, row['x1']),min(y1, row['y1'])]
     return subsections,subsection_bbox
 
+def generate_division_embeddings(divisions_content, divisions_metadata, model):
+    # TODO: attach summaries with division headers 
+    pass
 
+def generate_section_embeddings(subsections_content, subsections_metadata, model):
+    subsection_content_embeddings = model.encode(subsections_content)
+    extracted_sheet_title = subsections_metadata['extracted_sheet_title'] 
+    page_no = subsections_metadata['page_no']
+    idx_prefix =  extracted_sheet_title+'_'+page_no
+    subsections_content_idx = [idx_prefix+  f"_section_{idx}" 
+                               for idx in range(len(subsections_content))]
+    chroma_client = chromadb.PersistentClient()
+    collection = chroma_client.get_create_collection(name="subsection_embedidngs")
+    collection.upsert(
+        documents=subsections_content,
+        ids=subsections_content_idx,
+        embeddings = subsection_content_embeddings,
+        metadatas = subsections_metadata
+    )            
+    print("upsert complete")
 # construction drawings functions
 def get_centroid(bbox, base_round = 25):
     x0, y0, x1, y1 = bbox
@@ -297,7 +295,7 @@ def show_bboxes(image, display_bboxes, allow_display = True, origin = 'top'):
         bbox = bbox_to_coords([x0,y0,x1, y1])
         imgdraw.polygon(bbox, outline ="red")
     if allow_display:
-        display(image1copy)
+        # display(image1copy)
         return
     return image1copy
 
@@ -505,7 +503,7 @@ def get_diagrams(df, table_area_threshold, connection_threshold = 10, white_spac
             all_tables[idx]['area'] = area
     return all_tables , raw_bboxes, merged_bboxes
 
-def process_page(layout, page_no, images, is_sheet = True):
+def process_page(layout, page_no, images, is_sheet = True, model = None):
     sheet_values = None
     df, _ = get_layout_dataframe(layout[page_no], base_round=5)
 
@@ -517,7 +515,7 @@ def process_page(layout, page_no, images, is_sheet = True):
     extracted_sheet_title = ''
     table_bboxes = []
     if is_sheet:
-        text_df = df[df["is_sheet_details"] == True]
+        text_df = main_page_df[main_page_df["is_sheet_details"] == True]
         tx0, ty0, tx1, ty1 = SHEET_NUMBER
         extracted_sheet_number = text_df[(text_df['x0'] > tx0-5) & (text_df['x1'] < tx1+5) 
                             & (text_df['y0'] > ty0-5) & (text_df['y1'] < ty1+5)
@@ -533,7 +531,8 @@ def process_page(layout, page_no, images, is_sheet = True):
         main_page_df = df[df["is_sheet_details"] == False]
 
         if is_schedule:
-            all_tables, raw_bboxes, merged_bboxes = get_diagrams(main_page_df, table_area_threshold = [7000.0, 5000000.0], connection_threshold = 30)
+            text_df = main_page_df[main_page_df['type']==pdfminer.Layout.LTTextBoxHorizontal]
+            all_tables, raw_bboxes, merged_bboxes = get_diagrams(text_df, table_area_threshold = [1000.0, 5000000.0], connection_threshold = 30)
         else:
             all_tables, raw_bboxes, merged_bboxes = get_diagrams(main_page_df, table_area_threshold = [1000.0, 5000000.0], connection_threshold = 40)
         table_bboxes = [v['table_regions'] for k, v in all_tables.items()]
@@ -548,6 +547,11 @@ def process_page(layout, page_no, images, is_sheet = True):
             if match:
                 extracted_sheet_title = match.group(0)         
         table_bboxes = subsections_bboxes
+        subsections_metadata = {"bboxes":subsections_bboxes, 
+                                "extracted_sheet_title":extracted_sheet_title,
+                                "page_no": page_no}
+        # not tested
+        # generate_section_embeddings(subsections_content, subsections_metadata, model)
 
     processed_image = show_bboxes(images[page_no], table_bboxes, allow_display = False)
 
@@ -559,6 +563,7 @@ def process_page(layout, page_no, images, is_sheet = True):
 
 if __name__ == "__main__":
     path = "Input - Specifications.pdf"
+    model = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B")
     laparams=LAParams(all_texts=True, detect_vertical=False, 
                         line_overlap=0.5, char_margin=2000.0, 
                         line_margin=0.5, word_margin=2,
@@ -576,5 +581,6 @@ if __name__ == "__main__":
     layout, images = extract_everything_from_pdf(path, page_numbers = page_numbers, laparams=laparams)    
     results = {}
     for num in page_numbers:
-        results[num] = process_page(layout, num, images)
-        
+        # generates embeddings
+        results[num] = process_page(layout, num, images, model)
+
