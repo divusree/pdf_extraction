@@ -14,7 +14,7 @@ import pandas as pd
 from PIL import Image, ImageDraw
 import fitz
 import traceback
-import chromadb
+# import chromadb
 from sentence_transformers import SentenceTransformer
 
 
@@ -133,14 +133,14 @@ def generate_section_embeddings(subsections_content, subsections_metadata, model
     idx_prefix =  extracted_sheet_title+'_'+page_no
     subsections_content_idx = [idx_prefix+  f"_section_{idx}" 
                                for idx in range(len(subsections_content))]
-    chroma_client = chromadb.PersistentClient()
-    collection = chroma_client.get_create_collection(name="subsection_embedidngs")
-    collection.upsert(
-        documents=subsections_content,
-        ids=subsections_content_idx,
-        embeddings = subsection_content_embeddings,
-        metadatas = subsections_metadata
-    )            
+    # chroma_client = chromadb.PersistentClient()
+    # collection = chroma_client.get_create_collection(name="subsection_embedidngs")
+    # collection.upsert(
+    #     documents=subsections_content,
+    #     ids=subsections_content_idx,
+    #     embeddings = subsection_content_embeddings,
+    #     metadatas = subsections_metadata
+    # )            
     print("upsert complete")
 # construction drawings functions
 def get_centroid(bbox, base_round = 25):
