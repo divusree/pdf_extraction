@@ -110,7 +110,7 @@ def main():
                 st.header("📊 Extraction Results")
                 
                 # Create tabs for different views
-                tab1, tab2 = st.tabs(["🖼️ Visual Results", "📋 Structured Data"] ) #, "📥 Download"])
+                tab1, tab2, tab3 = st.tabs(["🖼️ Visual Results", "📋 Structured Data", "📥 Download"])
                 
                 with tab1:
                     st.subheader("Extracted Images")
@@ -140,23 +140,22 @@ def main():
                         st.json(dict(scope_misc_match))
                         st.json(toc_pages)
                 
-                # with tab3:
-                #     st.subheader("Download Processed Results")
-                #     st.markdown("Download a ZIP file containing all extracted data and images.")
+                with tab3:
+                    st.subheader("Download Processed Results")
+                    st.markdown("Download a ZIP file containing all extracted data and images.")
                     
-                #     # Create download button
-                #     zip_buffer = create_zipfile(doc_type, results)
+                    zip_buffer = create_zipfile(doc_type, results)
                     
-                #     st.download_button(
-                #         label="📥 Download ZIP File",
-                #         data=zip_buffer.getvalue(),
-                #         file_name=f"{doc_type.lower().replace(' ', '_')}_extraction_results.zip",
-                #         mime="application/zip",
-                #         type="primary",
-                #         use_container_width=True
-                #     )
+                    st.download_button(
+                        label="📥 Download ZIP File",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"{doc_type.lower().replace(' ', '_')}_extraction_results.zip",
+                        mime="application/zip",
+                        type="primary",
+                        use_container_width=True
+                    )
                     
-                #     st.info("💡 ZIP file contains: extracted images, structured data (JSON), processing logs, and metadata.")
+                    st.info("💡 ZIP file contains: extracted images, structured data (JSON), processing logs, and metadata.")
     
     else:
         # Welcome message when no file is uploaded
@@ -200,32 +199,37 @@ def main():
             - Data structuring
             """)
         
-        # with col3:
-        #     st.markdown("""
-        #     **3. Results & Export**
-        #     - Visual annotations
-        #     - Structured JSON data
-        #     - ZIP download package
-        #     """)
+        with col3:
+            st.markdown("""
+            **3. Results & Export**
+            - Visual annotations
+            - Structured JSON data
+            - ZIP download package
+            """)
 
 
 def create_zipfile(doc_type, results):
     """Create a sample ZIP file with extraction results"""
     zip_buffer = io.BytesIO()
+    # print(results)
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
     
-        image_buffers = [io.BytesIO()] * len(results)
+        image_buffers = [io.BytesIO() for _ in range(len(results))]
         json_data = {}
         buff_ct = 0
         for page_num, page_results in results.items():
+            json_data[page_num] = {}
             if page_results.get("image"):
                 page_results.get("image").save(image_buffers[buff_ct], format='PNG')
                 zip_file.writestr(f"{page_num}_analysis.png", image_buffers[buff_ct].getvalue())
                 buff_ct += 1
-            else:
-                json_data[page_num] = page_results
+            json_data[page_num]['table_regions'] = page_results['table_regions']
+            if doc_type == "Construction Drawings":
+                json_data.update({"extracted_sheet_number": page_results['extracted_sheet_number'], 
+                    "extracted_sheet_title": page_results['extracted_sheet_title']})                
         # Add structured data as JSON
-        zip_file.writestr(f"{doc_type.lower().replace(' ', '_')}_data.json", json_data)
+        # print(json_data)
+        zip_file.writestr(f"{doc_type.lower().replace(' ', '_')}_data.json", json.dumps(json_data))
         
     zip_buffer.seek(0)
     return zip_buffer
