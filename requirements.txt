@@ -3,3 +3,5 @@ pdfminer.six==20250506
 pandas==2.3.2
 streamlit==1.49.1
 PyMuPDF==1.26.4
+sentence-transformers==5.1.0
+chromadb==1.0.21
